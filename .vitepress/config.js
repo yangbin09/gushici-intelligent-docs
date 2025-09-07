@@ -77,17 +77,17 @@ export default defineConfig({
     // 导航栏
     nav: [
       { text: '首页', link: '/' },
-      { text: '指令分类', link: '/categories/' },
-      { text: '随笔文集', link: '/essays/' },
-      { text: 'AI技术', link: '/tools/' },
-      { text: '技术文章', link: '/articles/' },
-      { text: 'GitHub', link: 'https://github.com/yangbin09/tera-docs' }
+      { text: '山水田园', link: '/landscape/' },
+      { text: '边塞征战', link: '/frontier/' },
+      { text: '咏史怀古', link: '/history/' },
+      { text: '抒情咏物', link: '/lyrical/' },
+      { text: 'GitHub', link: 'https://github.com/yangbin09/gushici-intelligent-docs' }
     ],
 
     // 侧边栏 - 使用自动化路径修复的 vitepress-sidebar
     sidebar: {
-      // Categories 目录自动生成侧边栏
-      '/categories/': generateSidebarWithCorrectPaths('/categories/', 'docs/categories', {
+      // 山水田园目录自动生成侧边栏
+      '/landscape/': generateSidebarWithCorrectPaths('/landscape/', 'docs/landscape', {
         hyphenToSpace: true,
         underscoreToSpace: true,
         capitalizeFirst: true,
@@ -99,8 +99,8 @@ export default defineConfig({
         frontmatterTitleFieldName: 'title'
       }),
       
-      // Tools 目录自动生成侧边栏
-      '/tools/': generateSidebarWithCorrectPaths('/tools/', 'docs/tools', {
+      // 边塞征战目录自动生成侧边栏
+      '/frontier/': generateSidebarWithCorrectPaths('/frontier/', 'docs/frontier', {
         hyphenToSpace: true,
         underscoreToSpace: true,
         capitalizeFirst: true,
@@ -112,8 +112,8 @@ export default defineConfig({
         frontmatterTitleFieldName: 'title'
       }),
       
-      // Essays 目录自动生成侧边栏
-      '/essays/': generateSidebarWithCorrectPaths('/essays/', 'docs/essays', {
+      // 咏史怀古目录自动生成侧边栏
+      '/history/': generateSidebarWithCorrectPaths('/history/', 'docs/history', {
         hyphenToSpace: true,
         underscoreToSpace: true,
         capitalizeFirst: true,
@@ -124,8 +124,9 @@ export default defineConfig({
         sortMenusOrderByDescending: false,
         frontmatterTitleFieldName: 'title'
       }),
-        // Articles 目录自动生成侧边栏
-      '/articles/': generateSidebarWithCorrectPaths('/articles/', 'docs/articles', {
+      
+      // 抒情咏物目录自动生成侧边栏
+      '/lyrical/': generateSidebarWithCorrectPaths('/lyrical/', 'docs/lyrical', {
         hyphenToSpace: true,
         underscoreToSpace: true,
         capitalizeFirst: true,
@@ -135,7 +136,9 @@ export default defineConfig({
         sortMenusByName: true,
         sortMenusOrderByDescending: false,
         frontmatterTitleFieldName: 'title'
-      })
+      }),
+      
+
     },
 
     // 搜索
