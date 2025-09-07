@@ -1,0 +1,144 @@
+name: Deploy VitePress site to Remote Server
+
+on:
+  # 在推送到 main 分支时触发
+  push:
+    branches: [main, master]
+  # 允许手动触发工作流
+  workflow_dispatch:
+
+# 设置基本权限
+permissions:
+  contents: read
+
+# 只允许一个并发部署
+concurrency:
+  group: deploy-server
+  cancel-in-progress: false
+
+jobs:
+  # 构建和部署作业
+  deploy:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          registry-url: 'https://registry.npmmirror.com'
+      
+      - name: Install dependencies
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          npm install
+      
+      - name: Lint code
+        run: npm run lint
+      
+      - name: Build with VitePress
+        run: |
+          npm run docs:build
+          touch .vitepress/dist/.nojekyll
+      
+      - name: Create backup and prepare remote directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOSTNAME }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          timeout: 30s
+          script: |
+            # 清理旧备份（仅保留1份）
+            if [ -d "${{ secrets.REMOTE_BACKUP_DIR }}" ]; then
+              rm -rf ${{ secrets.REMOTE_BACKUP_DIR }}/* 2>/dev/null || true
+            fi
+            # 创建备份目录
+            mkdir -p ${{ secrets.REMOTE_BACKUP_DIR }}/$(date +%Y%m%d_%H%M%S)
+            # 备份当前网站文件
+            if [ -d "${{ secrets.REMOTE_WEB_DIR }}" ]; then
+              cp -r ${{ secrets.REMOTE_WEB_DIR }}/* ${{ secrets.REMOTE_BACKUP_DIR }}/$(date +%Y%m%d_%H%M%S)/ 2>/dev/null || true
+            fi
+            # 清理目标目录，确保完全覆盖
+            rm -rf ${{ secrets.REMOTE_WEB_DIR }}/*
+            # 确保目标目录存在
+            mkdir -p ${{ secrets.REMOTE_WEB_DIR }}
+      
+      - name: Debug SSH secrets
+        run: |
+          echo "SSH_HOSTNAME: '${{ secrets.SSH_HOSTNAME }}'"
+          echo "SSH_USERNAME: '${{ secrets.SSH_USERNAME }}'"
+          echo "SSH_PORT: '${{ secrets.SSH_PORT }}'"
+          echo "REMOTE_WEB_DIR: '${{ secrets.REMOTE_WEB_DIR }}'"
+          echo "REMOTE_BACKUP_DIR: '${{ secrets.REMOTE_BACKUP_DIR }}'"
+      
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOSTNAME }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          source: ".vitepress/dist/*"
+          target: ${{ secrets.REMOTE_WEB_DIR }}/
+          strip_components: 2
+          overwrite: true
+      
+      - name: Configure Nginx and restart services
+        uses: appleboy/ssh-action@v1
+        env:
+          REMOTE_WEB_DIR: ${{ secrets.REMOTE_WEB_DIR }}
+          REMOTE_BACKUP_DIR: ${{ secrets.REMOTE_BACKUP_DIR }}
+        with:
+          host: ${{ secrets.SSH_HOSTNAME }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          timeout: 30s
+          envs: REMOTE_WEB_DIR,REMOTE_BACKUP_DIR
+          script: |
+            # 验证必需的环境变量
+            if [ -z "$REMOTE_WEB_DIR" ] || [ -z "$REMOTE_BACKUP_DIR" ]; then
+              echo "错误: REMOTE_WEB_DIR 或 REMOTE_BACKUP_DIR 未配置"
+              echo "REMOTE_WEB_DIR: '$REMOTE_WEB_DIR'"
+              echo "REMOTE_BACKUP_DIR: '$REMOTE_BACKUP_DIR'"
+              exit 1
+            fi
+            
+            # 清理旧备份（仅保留1份）
+            if [ -d "$REMOTE_BACKUP_DIR" ]; then
+              rm -rf $REMOTE_BACKUP_DIR/* 2>/dev/null || true
+            fi
+            
+            # 创建备份目录
+            mkdir -p $REMOTE_BACKUP_DIR/$(date +%Y%m%d_%H%M%S)
+            
+            # 备份当前网站文件
+            if [ -d "$REMOTE_WEB_DIR" ]; then
+              cp -r $REMOTE_WEB_DIR/* $REMOTE_BACKUP_DIR/$(date +%Y%m%d_%H%M%S)/ 2>/dev/null || true
+            fi
+            
+            # 设置正确的文件权限
+            chown -R www-data:www-data $REMOTE_WEB_DIR
+            chmod -R 755 $REMOTE_WEB_DIR
+            
+            # 启用Gzip压缩（如果配置了）
+            if [ "${{ secrets.ENABLE_GZIP }}" = "true" ]; then
+              find ${{ secrets.REMOTE_WEB_DIR }} -name "*.html" -o -name "*.css" -o -name "*.js" | xargs gzip -k
+            fi
+            
+            # 重新加载Nginx配置
+            nginx -t && nginx -s reload
+            
+            # 输出部署状态
+            echo "部署完成时间: $(date)"
+            echo "部署目录: ${{ secrets.REMOTE_WEB_DIR }}"
+            echo "备份目录: ${{ secrets.REMOTE_BACKUP_DIR }}"
+            echo "网站状态: $(curl -s -o /dev/null -w '%{http_code}' http://${{ secrets.SSH_HOSTNAME }})"

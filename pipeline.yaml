@@ -1,0 +1,248 @@
+version: '1.0'
+name: pipeline-20250830
+displayName: VitePress文档站点部署流水线
+triggers:
+  trigger: auto
+  push:
+    branches:
+      prefix:
+        - main
+        - master
+        - develop
+variables:
+  # SSH连接配置
+  SSH_HOSTNAME: "8.134.100.191"
+  SSH_USERNAME: "root"
+  SSH_PASSWORD: "y5Ber4FwYym@f37"
+  SSH_PORT: "22"
+  SSH_TIMEOUT: "30"
+  # 项目路径配置
+  LOCAL_DOCS_PATH: "docs"
+  LOCAL_DIST_PATH: "docs/.vitepress/dist"
+  REMOTE_WEB_DIR: "/opt/1panel/apps/openresty/openresty/www/sites/wynlx.cn/index"
+  REMOTE_BACKUP_DIR: "/var/backups/vitepress"
+  # 构建配置
+  BUILD_COMMAND: "pnpm run docs:build"
+  # Nginx配置
+  NGINX_CONFIG_DIR: "/etc/nginx/sites-available"
+  NGINX_SITE_NAME: "vitepress-docs"
+  NGINX_DOMAIN: "8.134.100.191"
+  # 部署配置
+  MAX_RETRIES: "3"
+  BACKUP_RETENTION_DAYS: "7"
+  ENABLE_GZIP: "true"
+  ENABLE_CACHE_HEADERS: "true"
+  # 日志配置
+  LOG_LEVEL: "INFO"
+stages:
+  - name: stage-prepare
+    displayName: 环境准备阶段
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@python
+        name: setup_python_env
+        displayName: Python环境设置
+        pythonVersion: 3.9
+        commands:
+          - '# 设置Python环境和依赖'
+          - '# 配置清华镜像源，提升下载速度'
+          - python3 -m pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+          - python3 -m pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn
+          - python3 -m pip install --upgrade pip
+          - if [ -d "vitepress-deploy-py" ]; then
+          - '  cd vitepress-deploy-py'
+          - '  if [ -f "requirements.txt" ]; then'
+          - '    python3 -m pip install -r requirements.txt'
+          - '    echo "✅ Python依赖安装完成"'
+          - '  fi'
+          - '  cd ..'
+          - fi
+        artifacts:
+          - name: PYTHON_ENV
+            path:
+              - ./vitepress-deploy-py
+        caches:
+          - ~/.pip
+        notify: []
+        strategy:
+          retry: '0'
+      - step: build@nodejs
+        name: setup_node_env
+        displayName: Node.js环境设置
+        nodeVersion: 18.16.0
+        commands:
+          - '# 设置NPM源，提升安装速度'
+          - npm config set registry https://registry.npmmirror.com
+          - '# 安装pnpm'
+          - npm install -g pnpm
+          - '# 配置pnpm镜像源'
+          - pnpm config set registry https://registry.npmmirror.com
+          - '# 安装前端依赖'
+          - cd docs
+          - pnpm install
+          - cd ..
+        artifacts:
+          - name: NODE_ENV
+            path:
+              - ./docs/node_modules
+        caches:
+          - ~/.npm
+          - ~/.pnpm
+        notify: []
+        strategy:
+          retry: '0'
+  - name: stage-build
+    displayName: 构建文档阶段
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@nodejs
+        name: build_vitepress
+        displayName: VitePress文档构建
+        nodeVersion: 18.16.0
+        dependArtifact: NODE_ENV
+        commands:
+          - '# 安装pnpm（依赖制品不包含全局安装的包）'
+          - npm install -g pnpm
+          - '# 构建VitePress文档'
+          - cd docs
+          - pnpm install
+          - pnpm run docs:build
+          - '# 验证构建结果'
+          - if [ -d ".vitepress/dist" ]; then
+          - '  echo "✅ VitePress构建成功"'
+          - '  ls -la .vitepress/dist'
+          - else
+          - '  echo "❌ VitePress构建失败"'
+          - '  exit 1'
+          - fi
+        artifacts:
+          - name: BUILD_ARTIFACT
+            path:
+              - ./docs/.vitepress/dist
+        caches:
+          - ~/.npm
+          - ~/.pnpm
+        notify: []
+        strategy:
+          retry: '1'
+  - name: stage-deploy
+    displayName: 部署阶段
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: publish@general_artifacts
+        name: publish_docs
+        displayName: 发布文档制品
+        dependArtifact: BUILD_ARTIFACT
+        artifactName: vitepress-docs
+        artifacts: []
+        caches: []
+        notify: []
+        strategy:
+          retry: '0'
+      - step: build@python
+        name: deploy_to_server
+        displayName: 部署到远程服务器
+        dependArtifact: BUILD_ARTIFACT
+        pythonVersion: 3.9
+        env:
+          # SSH连接配置
+          SSH_HOSTNAME: ${SSH_HOSTNAME}
+          SSH_USERNAME: ${SSH_USERNAME}
+          SSH_PASSWORD: ${SSH_PASSWORD}
+          SSH_PORT: ${SSH_PORT}
+          SSH_TIMEOUT: ${SSH_TIMEOUT}
+          # 项目路径配置
+          LOCAL_DOCS_PATH: ${LOCAL_DOCS_PATH}
+          LOCAL_DIST_PATH: ${LOCAL_DIST_PATH}
+          REMOTE_WEB_DIR: ${REMOTE_WEB_DIR}
+          REMOTE_BACKUP_DIR: ${REMOTE_BACKUP_DIR}
+          # 构建配置
+          BUILD_COMMAND: ${BUILD_COMMAND}
+          # Nginx配置
+          NGINX_CONFIG_DIR: ${NGINX_CONFIG_DIR}
+          NGINX_SITE_NAME: ${NGINX_SITE_NAME}
+          NGINX_DOMAIN: ${NGINX_DOMAIN}
+          # 部署配置
+          MAX_RETRIES: ${MAX_RETRIES}
+          BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS}
+          ENABLE_GZIP: ${ENABLE_GZIP}
+          ENABLE_CACHE_HEADERS: ${ENABLE_CACHE_HEADERS}
+          # 日志配置
+          LOG_LEVEL: ${LOG_LEVEL}
+        commands:
+          - '# 配置Python镜像源并安装部署依赖'
+          - python3 -m pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+          - python3 -m pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn
+          - '# 安装Node.js 18.x（部署脚本需要）'
+          - |
+            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+          - '# 验证Node.js和npm安装'
+          - node --version
+          - npm --version
+          - '# 配置npm镜像源'
+          - npm config set registry https://registry.npmmirror.com
+          - cd vitepress-deploy-py
+          - python3 -m pip install -r requirements.txt
+          - cd ../
+          - '# 创建部署目录结构'
+          - python3 -c "import os; os.makedirs('deploy_workspace', exist_ok=True)"
+          - '# 检查并复制构建产物内容（避免目录层级嵌套）'
+          - |
+            python3 -c "
+            import shutil, os, glob
+            src_dir = 'docs/.vitepress/dist'
+            target_dir = 'deploy_workspace/dist'
+            
+            if os.path.exists(src_dir):
+                print(f'复制源路径: {src_dir}')
+                # 确保目标目录存在
+                os.makedirs(target_dir, exist_ok=True)
+                # 复制dist目录内的所有内容，而不是dist目录本身
+                for item in glob.glob(os.path.join(src_dir, '*')):
+                    item_name = os.path.basename(item)
+                    target_path = os.path.join(target_dir, item_name)
+                    if os.path.isdir(item):
+                        if os.path.exists(target_path):
+                            shutil.rmtree(target_path)
+                        shutil.copytree(item, target_path)
+                    else:
+                        shutil.copy2(item, target_path)
+                print(f'已复制dist目录内容到: {target_dir}')
+            else:
+                print('未找到构建产物，跳过复制')
+            "
+          - '# 切换到部署脚本目录'
+          - cd vitepress-deploy-py
+          - '# 检查部署环境文件是否存在'
+          - |
+            python3 -c "
+            import os
+            if os.path.exists('check_deploy_env.py'):
+                print('check_deploy_env.py存在')
+            else:
+                print('文件不存在，跳过检查')
+            "
+          - '# 运行部署环境检查（如果文件存在）'
+          - |
+            python3 -c "
+            import os, subprocess
+            if os.path.exists('check_deploy_env.py'):
+                subprocess.run(['python3', 'check_deploy_env.py'])
+            else:
+                print('跳过环境检查')
+            "
+          - '# 执行部署脚本'
+          - python3 deploy_new.py --no-nginx --incremental
+          - cd ../
+        caches:
+          - ~/.pip
+        notify: []
+        strategy:
+          retry: '1'
