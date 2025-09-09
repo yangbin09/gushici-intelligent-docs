@@ -72,7 +72,7 @@ export default defineConfig({
   // 主题配置
   themeConfig: {
     // 网站标题
-    siteTitle: 'AI写作指令集合',
+    siteTitle: '古诗词智能文档',
     
     // 导航栏
     nav: [
@@ -170,7 +170,7 @@ export default defineConfig({
     // 页脚
     footer: {
       message: '基于 MIT 许可发布',
-      copyright: 'Copyright © 2025 AI写作指令集合'
+      copyright: 'Copyright © 2025 古诗词智能文档'
     },
 
     // 编辑链接
@@ -195,8 +195,8 @@ export default defineConfig({
     ['meta', { name: 'theme-color', content: '#3c82f6' }],
     ['meta', { name: 'og:type', content: 'website' }],
     ['meta', { name: 'og:locale', content: 'zh-CN' }],
-    ['meta', { name: 'og:title', content: 'AI写作指令集合' }],
-    ['meta', { name: 'og:site_name', content: 'AI写作指令集合' }],
+    ['meta', { name: 'og:title', content: '古诗词智能文档' }],
+    ['meta', { name: 'og:site_name', content: '古诗词智能文档' }],
     ['meta', { name: 'og:description', content: '包含各种AI写作指令和教程的文档集合，涵盖多种写作场景和应用' }]
   ],
 
