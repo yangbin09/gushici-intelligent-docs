@@ -164,7 +164,7 @@ export default defineConfig({
 
     // 社交链接
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/yangbin09/tera-docs' }
+      { icon: 'github', link: 'https://github.com/yangbin09/gushici-intelligent-docs' }
     ],
 
     // 页脚
@@ -175,7 +175,7 @@ export default defineConfig({
 
     // 编辑链接
     editLink: {
-      pattern: 'https://github.com/yangbin09/tera-docs/edit/master/docs/:path',
+      pattern: 'https://github.com/yangbin09/gushici-intelligent-docs/edit/main/docs/:path',
       text: '在 GitHub 上编辑此页面'
     },
 

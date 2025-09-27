@@ -13,7 +13,7 @@ variables:
   # SSH连接配置
   SSH_HOSTNAME: "8.134.100.191"
   SSH_USERNAME: "root"
-  SSH_PASSWORD: "y5Ber4FwYym@f37"
+  SSH_PASSWORD: "@f37"
   SSH_PORT: "22"
   SSH_TIMEOUT: "30"
   # 项目路径配置

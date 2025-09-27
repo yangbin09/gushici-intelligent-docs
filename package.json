@@ -78,14 +78,15 @@
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
     "docs:preview": "vitepress preview",
-    "deploy": "py deploy.py",
+    "links:check": "python process_links.py --dry-run",
+    "links:fix": "python process_links.py --fix",
     "lint": "echo \"Linting completed - no ESLint configuration found\"",
     "format:check": "echo \"Format check completed - no Prettier configuration found\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yangbin09/tera-docs.git"
+    "url": "https://github.com/yangbin09/gushici-intelligent-docs.git"
   },
   "keywords": [],
   "author": "",

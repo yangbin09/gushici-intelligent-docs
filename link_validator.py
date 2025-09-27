@@ -8,12 +8,24 @@
 import os
 import re
 import sys
-import os
 import argparse
 from pathlib import Path
 from urllib.parse import urlparse
 import requests
 from typing import List, Tuple, Dict
+
+def find_markdown_files(directory: Path) -> list:
+    """查找目录中的所有Markdown文件"""
+    markdown_files = []
+    for root, dirs, files in os.walk(directory):
+        # 跳过隐藏目录和node_modules
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d != 'node_modules']
+        
+        for file in files:
+            if file.endswith('.md'):
+                markdown_files.append(Path(root) / file)
+    
+    return markdown_files
 
 class LinkValidator:
     def __init__(self, target_file: str, dry_run: bool = False):
