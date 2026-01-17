@@ -1,6 +1,20 @@
 import { defineConfig } from 'vitepress'
 import { generateSidebar } from 'vitepress-sidebar'
 
+const CJK_REGEX = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u
+
+function tokenizeForSearch(text) {
+  if (!text) return []
+  return text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[^\p{Letter}\p{Number}]+/gu, ' ')
+    .split(/\s+/)
+    .flatMap(token => {
+      if (!token) return []
+      return CJK_REGEX.test(token) ? Array.from(token) : [token]
+    })
+}
+
 // 自动化侧边栏路径修复函数
 function generateSidebarWithCorrectPaths(routePrefix, scanStartPath, options = {}) {
   // 生成原始侧边栏
@@ -77,6 +91,7 @@ export default defineConfig({
     // 导航栏
     nav: [
       { text: '首页', link: '/' },
+      { text: '作品总览', link: '/collections/' },
       { text: '山水田园', link: '/landscape/' },
       { text: '边塞征战', link: '/frontier/' },
       { text: '咏史怀古', link: '/history/' },
@@ -86,6 +101,12 @@ export default defineConfig({
 
     // 侧边栏 - 使用自动化路径修复的 vitepress-sidebar
     sidebar: {
+      '/collections/': [
+        {
+          text: '作品总览',
+          items: [{ text: '主题分类与索引', link: '/collections/' }]
+        }
+      ],
       // 山水田园目录自动生成侧边栏
       '/landscape/': generateSidebarWithCorrectPaths('/landscape/', 'docs/landscape', {
         hyphenToSpace: true,
@@ -145,6 +166,17 @@ export default defineConfig({
     search: {
       provider: 'local',
       options: {
+        detailedView: false,
+        miniSearch: {
+          options: {
+            tokenize: tokenizeForSearch,
+            processTerm: term => term.toLowerCase()
+          },
+          searchOptions: {
+            prefix: true,
+            fuzzy: 0.2
+          }
+        },
         translations: {
           button: {
             buttonText: '搜索文档',
@@ -197,7 +229,7 @@ export default defineConfig({
     ['meta', { name: 'og:locale', content: 'zh-CN' }],
     ['meta', { name: 'og:title', content: '古诗词智能文档' }],
     ['meta', { name: 'og:site_name', content: '古诗词智能文档' }],
-    ['meta', { name: 'og:description', content: '包含各种AI写作指令和教程的文档集合，涵盖多种写作场景和应用' }]
+    ['meta', { name: 'og:description', content: '精选古诗词作品集与文学赏析，按主题分类提供多媒体阅读体验' }]
   ],
 
   // 语言配置
